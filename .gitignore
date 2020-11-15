@@ -34,3 +34,7 @@ TestOutput
 /*.png
 /*.exr
 /*.astc
+perf_fast.txt
+perf_fastest.txt
+perf_medium.txt
+Docs/Profiling.md

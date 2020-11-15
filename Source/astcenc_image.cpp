@@ -23,6 +23,7 @@
 #include <cstring>
 
 #include "astcenc_internal.h"
+#include "astcenc_vecmathlib.h"
 
 // conversion functions between the LNS representation and the FP16 representation.
 static float float_to_lns(float p)
@@ -105,10 +106,15 @@ uint16_t unorm16_to_sf16(uint16_t p)
 void imageblock_initialize_deriv(
 	const imageblock* pb,
 	int pixelcount,
-	float4* dptr
+	vfloat4* dptr
 ) {
 	for (int i = 0; i < pixelcount; i++)
 	{
+		float rf = 65535.0f;
+		float gf = 65535.0f;
+		float bf = 65535.0f;
+		float af = 65535.0f;
+
 		// compute derivatives for RGB first
 		if (pb->rgb_lns[i])
 		{
@@ -121,48 +127,38 @@ void imageblock_initialize_deriv(
 			float g = MAX(fdata.g, 6e-5f);
 			float b = MAX(fdata.b, 6e-5f);
 
-			float rderiv = (float_to_lns(r * 1.05f) - float_to_lns(r)) / (r * 0.05f);
-			float gderiv = (float_to_lns(g * 1.05f) - float_to_lns(g)) / (g * 0.05f);
-			float bderiv = (float_to_lns(b * 1.05f) - float_to_lns(b)) / (b * 0.05f);
+			rf = (float_to_lns(r * 1.05f) - float_to_lns(r)) / (r * 0.05f);
+			gf = (float_to_lns(g * 1.05f) - float_to_lns(g)) / (g * 0.05f);
+			bf = (float_to_lns(b * 1.05f) - float_to_lns(b)) / (b * 0.05f);
 
 			// the derivative may not actually take values smaller than 1/32 or larger than 2^25;
 			// if it does, we clamp it.
-			if (rderiv < (1.0f / 32.0f))
+			if (rf < (1.0f / 32.0f))
 			{
-				rderiv = (1.0f / 32.0f);
+				rf = (1.0f / 32.0f);
 			}
-			else if (rderiv > 33554432.0f)
+			else if (rf > 33554432.0f)
 			{
-				rderiv = 33554432.0f;
-			}
-
-			if (gderiv < (1.0f / 32.0f))
-			{
-				gderiv = (1.0f / 32.0f);
-			}
-			else if (gderiv > 33554432.0f)
-			{
-				gderiv = 33554432.0f;
+				rf = 33554432.0f;
 			}
 
-			if (bderiv < (1.0f / 32.0f))
+			if (gf < (1.0f / 32.0f))
 			{
-				bderiv = (1.0f / 32.0f);
+				gf = (1.0f / 32.0f);
 			}
-			else if (bderiv > 33554432.0f)
+			else if (gf > 33554432.0f)
 			{
-				bderiv = 33554432.0f;
+				gf = 33554432.0f;
 			}
 
-			dptr->r = rderiv;
-			dptr->g = gderiv;
-			dptr->b = bderiv;
-		}
-		else
-		{
-			dptr->r = 65535.0f;
-			dptr->g = 65535.0f;
-			dptr->b = 65535.0f;
+			if (bf < (1.0f / 32.0f))
+			{
+				bf = (1.0f / 32.0f);
+			}
+			else if (bf > 33554432.0f)
+			{
+				bf = 33554432.0f;
+			}
 		}
 
 		// then compute derivatives for Alpha
@@ -172,25 +168,20 @@ void imageblock_initialize_deriv(
 			fdata = sf16_to_float(lns_to_sf16((uint16_t)fdata));
 
 			float a = MAX(fdata, 6e-5f);
-			float aderiv = (float_to_lns(a * 1.05f) - float_to_lns(a)) / (a * 0.05f);
+			af = (float_to_lns(a * 1.05f) - float_to_lns(a)) / (a * 0.05f);
 			// the derivative may not actually take values smaller than 1/32 or larger than 2^25;
 			// if it does, we clamp it.
-			if (aderiv < (1.0f / 32.0f))
+			if (af < (1.0f / 32.0f))
 			{
-				aderiv = (1.0f / 32.0f);
+				af = (1.0f / 32.0f);
 			}
-			else if (aderiv > 33554432.0f)
+			else if (af > 33554432.0f)
 			{
-				aderiv = 33554432.0f;
+				af = 33554432.0f;
 			}
-
-			dptr->a = aderiv;
-		}
-		else
-		{
-			dptr->a = 65535.0f;
 		}
 
+		*dptr = vfloat4(rf, gf, bf, af);
 		dptr++;
 	}
 }
@@ -200,34 +191,34 @@ void imageblock_initialize_work_from_orig(
 	imageblock* pb,
 	int pixelcount
 ) {
-	pb->origin_texel = float4(pb->data_r[0], pb->data_g[0],
-	                          pb->data_b[0], pb->data_a[0]);
+	pb->origin_texel = vfloat4(pb->data_r[0], pb->data_g[0],
+	                           pb->data_b[0], pb->data_a[0]);
 
 	for (int i = 0; i < pixelcount; i++)
 	{
-		float4 inc = float4(pb->data_r[i], pb->data_g[i],
-		                    pb->data_b[i], pb->data_a[i]);
+		vfloat4 inc = vfloat4(pb->data_r[i], pb->data_g[i],
+		                      pb->data_b[i], pb->data_a[i]);
 
 		if (pb->rgb_lns[i])
 		{
-			pb->data_r[i] = float_to_lns(inc.r);
-			pb->data_g[i] = float_to_lns(inc.g);
-			pb->data_b[i] = float_to_lns(inc.b);
+			pb->data_r[i] = float_to_lns(inc.r());
+			pb->data_g[i] = float_to_lns(inc.g());
+			pb->data_b[i] = float_to_lns(inc.b());
 		}
 		else
 		{
-			pb->data_r[i] = inc.r * 65535.0f;
-			pb->data_g[i] = inc.g * 65535.0f;
-			pb->data_b[i] = inc.b * 65535.0f;
+			pb->data_r[i] = inc.r() * 65535.0f;
+			pb->data_g[i] = inc.g() * 65535.0f;
+			pb->data_b[i] = inc.b() * 65535.0f;
 		}
 
 		if (pb->alpha_lns[i])
 		{
-			pb->data_a[i] = float_to_lns(inc.a);
+			pb->data_a[i] = float_to_lns(inc.a());
 		}
 		else
 		{
-			pb->data_a[i] = inc.a * 65535.0f;
+			pb->data_a[i] = inc.a() * 65535.0f;
 		}
 	}
 }
@@ -239,29 +230,29 @@ void imageblock_initialize_orig_from_work(
 ) {
 	for (int i = 0; i < pixelcount; i++)
 	{
-		float4 inc = float4(pb->data_r[i], pb->data_g[i],
-		                    pb->data_b[i], pb->data_a[i]);
+		vfloat4 inc = vfloat4(pb->data_r[i], pb->data_g[i],
+		                      pb->data_b[i], pb->data_a[i]);
 
 		if (pb->rgb_lns[i])
 		{
-			pb->data_r[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.r));
-			pb->data_g[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.g));
-			pb->data_b[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.b));
+			pb->data_r[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.r()));
+			pb->data_g[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.g()));
+			pb->data_b[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.b()));
 		}
 		else
 		{
-			pb->data_r[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.r));
-			pb->data_g[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.g));
-			pb->data_b[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.b));
+			pb->data_r[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.r()));
+			pb->data_g[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.g()));
+			pb->data_b[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.b()));
 		}
 
 		if (pb->alpha_lns[i])
 		{
-			pb->data_a[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.a));
+			pb->data_a[i] = sf16_to_float(lns_to_sf16((uint16_t)inc.a()));
 		}
 		else
 		{
-			pb->data_a[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.a));
+			pb->data_a[i] = sf16_to_float(unorm16_to_sf16((uint16_t)inc.a()));
 		}
 	}
 }
@@ -723,51 +714,24 @@ void update_imageblock_flags(
 	int ydim,
 	int zdim
 ) {
-	float red_min = 1e38f, red_max = -1e38f;
-	float green_min = 1e38f, green_max = -1e38f;
-	float blue_min = 1e38f, blue_max = -1e38f;
-	float alpha_min = 1e38f, alpha_max = -1e38f;
-
-	int texels_per_block = xdim * ydim * zdim;
-
+	vfloat4 data_min(1e38f);
+	vfloat4 data_max(-1e38f);
 	int grayscale = 1;
 
+	int texels_per_block = xdim * ydim * zdim;
 	for (int i = 0; i < texels_per_block; i++)
 	{
-		float red = pb->data_r[i];
-		float green = pb->data_g[i];
-		float blue = pb->data_b[i];
-		float alpha = pb->data_a[i];
-		if (red < red_min)
-			red_min = red;
-		if (red > red_max)
-			red_max = red;
-		if (green < green_min)
-			green_min = green;
-		if (green > green_max)
-			green_max = green;
-		if (blue < blue_min)
-			blue_min = blue;
-		if (blue > blue_max)
-			blue_max = blue;
-		if (alpha < alpha_min)
-			alpha_min = alpha;
-		if (alpha > alpha_max)
-			alpha_max = alpha;
+		vfloat4 data(pb->data_r[i], pb->data_g[i], pb->data_b[i], pb->data_a[i]);
+		data_min = min(data_min, data);
+		data_max = max(data_max, data);
 
-		if (grayscale == 1 && (red != green || red != blue))
+		if (grayscale == 1 && (data.r() != data.g() || data.r() != data.b()))
 		{
 			grayscale = 0;
 		}
 	}
 
-	pb->red_min = red_min;
-	pb->red_max = red_max;
-	pb->green_min = green_min;
-	pb->green_max = green_max;
-	pb->blue_min = blue_min;
-	pb->blue_max = blue_max;
-	pb->alpha_min = alpha_min;
-	pb->alpha_max = alpha_max;
+	pb->data_min = data_min;
+	pb->data_max = data_max;
 	pb->grayscale = grayscale;
 }

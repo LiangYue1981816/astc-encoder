@@ -37,12 +37,20 @@
 	#error "Include astcenc_vecmathlib.h, do not include directly"
 #endif
 
+#include <cstdio>
+
 struct vfloat4
 {
 	ASTCENC_SIMD_INLINE vfloat4() {}
+
 	ASTCENC_SIMD_INLINE explicit vfloat4(const float *p) { m = _mm_loadu_ps(p); }
+
 	ASTCENC_SIMD_INLINE explicit vfloat4(float v) { m = _mm_set_ps1(v); }
+
+	ASTCENC_SIMD_INLINE explicit vfloat4(float p, float q, float s, float t) { m = _mm_set_ps(t, s, q, p); }
+
 	ASTCENC_SIMD_INLINE explicit vfloat4(__m128 v) { m = v; }
+
 	ASTCENC_SIMD_INLINE float lane(int i) const
 	{
 		#ifdef _MSC_VER
@@ -53,8 +61,38 @@ struct vfloat4
 		return cvt.f[i];
 		#endif
 	}
+
+	template <int i> ASTCENC_SIMD_INLINE void set_lane(float v)
+	{
+		assert(i < 4);
+		__m128 nv = _mm_set_ps1(v);
+		m = _mm_insert_ps(m, nv, i << 6 | i << 4);
+	}
+
+	ASTCENC_SIMD_INLINE float r() const
+	{
+		return lane(0);
+	}
+
+	ASTCENC_SIMD_INLINE float g() const
+	{
+		return lane(1);
+	}
+
+	ASTCENC_SIMD_INLINE float b() const
+	{
+		return lane(2);
+	}
+
+	ASTCENC_SIMD_INLINE float a() const
+	{
+		return lane(3);
+	}
+
 	static ASTCENC_SIMD_INLINE vfloat4 zero() { return vfloat4(_mm_setzero_ps()); }
+
 	static ASTCENC_SIMD_INLINE vfloat4 lane_id() { return vfloat4(_mm_set_ps(3, 2, 1, 0)); }
+
 	__m128 m;
 };
 
@@ -92,6 +130,8 @@ ASTCENC_SIMD_INLINE vfloat4 loada_4f(const float* p) { return vfloat4(_mm_load_p
 ASTCENC_SIMD_INLINE vfloat4 operator+ (vfloat4 a, vfloat4 b) { a.m = _mm_add_ps(a.m, b.m); return a; }
 ASTCENC_SIMD_INLINE vfloat4 operator- (vfloat4 a, vfloat4 b) { a.m = _mm_sub_ps(a.m, b.m); return a; }
 ASTCENC_SIMD_INLINE vfloat4 operator* (vfloat4 a, vfloat4 b) { a.m = _mm_mul_ps(a.m, b.m); return a; }
+ASTCENC_SIMD_INLINE vfloat4 operator* (vfloat4 a, float b) { a.m = _mm_mul_ps(a.m, _mm_set_ps1(b)); return a; }
+ASTCENC_SIMD_INLINE vfloat4 operator* (float a, vfloat4 b) { b.m = _mm_mul_ps(_mm_set_ps1(a), b.m); return b; }
 ASTCENC_SIMD_INLINE vfloat4 operator/ (vfloat4 a, vfloat4 b) { a.m = _mm_div_ps(a.m, b.m); return a; }
 ASTCENC_SIMD_INLINE vmask4 operator==(vfloat4 a, vfloat4 b) { return vmask4(_mm_cmpeq_ps(a.m, b.m)); }
 ASTCENC_SIMD_INLINE vmask4 operator!=(vfloat4 a, vfloat4 b) { return vmask4(_mm_cmpneq_ps(a.m, b.m)); }
@@ -144,10 +184,10 @@ ASTCENC_SIMD_INLINE vfloat4 round(vfloat4 v)
 #endif
 }
 
-ASTCENC_SIMD_INLINE vint4 floatToInt(vfloat4 v) { return vint4(_mm_cvttps_epi32(v.m)); }
+ASTCENC_SIMD_INLINE vint4 float_to_int(vfloat4 v) { return vint4(_mm_cvttps_epi32(v.m)); }
 
-ASTCENC_SIMD_INLINE vfloat4 intAsFloat(vint4 v) { return vfloat4(_mm_castsi128_ps(v.m)); }
-ASTCENC_SIMD_INLINE vint4 floatAsInt(vfloat4 v) { return vint4(_mm_castps_si128(v.m)); }
+ASTCENC_SIMD_INLINE vfloat4 int_as_float(vint4 v) { return vfloat4(_mm_castsi128_ps(v.m)); }
+ASTCENC_SIMD_INLINE vint4 float_as_int(vfloat4 v) { return vint4(_mm_castps_si128(v.m)); }
 
 ASTCENC_SIMD_INLINE vint4 operator~ (vint4 a) { return vint4(_mm_xor_si128(a.m, _mm_set1_epi32(-1))); }
 ASTCENC_SIMD_INLINE vmask4 operator~ (vmask4 a) { return vmask4(_mm_xor_si128(_mm_castps_si128(a.m), _mm_set1_epi32(-1))); }
@@ -191,11 +231,43 @@ ASTCENC_SIMD_INLINE vfloat4 hmin(vfloat4 v)
 	v = min(v, ASTCENC_SHUFFLE4F(v, 1, 0, 0, 0));
 	return ASTCENC_SHUFFLE4F(v, 0, 0, 0, 0);
 }
+
 ASTCENC_SIMD_INLINE vint4 hmin(vint4 v)
 {
 	v = min(v, ASTCENC_SHUFFLE4I(v, 2, 3, 0, 0));
 	v = min(v, ASTCENC_SHUFFLE4I(v, 1, 0, 0, 0));
 	return ASTCENC_SHUFFLE4I(v, 0, 0, 0, 0);
+}
+
+ASTCENC_SIMD_INLINE float dot(vfloat4 p, vfloat4 q)  {
+#if (ASTCENC_SSE >= 42) && (ASTCENC_ISA_INVARIANCE == 0)
+	return _mm_cvtss_f32(_mm_dp_ps(p.m, q.m, 0xFF));
+#else
+	vfloat4 res = p * q;
+	return res.r() + res.g() + res.b() + res.a();
+#endif
+}
+
+
+ASTCENC_SIMD_INLINE vfloat4 normalize(vfloat4 p) {
+	// TODO: Provide a fallback for this one
+	float len = astc::rsqrt(dot(p, p));
+	p.set_lane<0>(p.r() * len);
+	p.set_lane<1>(p.g() * len);
+	p.set_lane<2>(p.b() * len);
+	p.set_lane<3>(p.a() * len);
+	return p;
+	// TODO: This introduces rounding differences
+	//__m128 len = _mm_rsqrt_ps(_mm_dp_ps(p.m, p.m, 0xFF));
+	//return vfloat4(_mm_mul_ps(p.m, len));
+}
+
+ASTCENC_SIMD_INLINE vfloat4 sqrt(vfloat4 p) {
+#if ASTCENC_SSE >= 20
+	return vfloat4(_mm_sqrt_ps(p.m));
+#else
+	return vfloat4(std::sqrt(p.r), std::sqrt(p.g), std::sqrt(p.b), std::sqrt(p.a));
+#endif
 }
 
 ASTCENC_SIMD_INLINE void store(vfloat4 v, float* ptr) { _mm_store_ps(ptr, v.m); }

@@ -34,9 +34,6 @@
  * used as a fixed-width type can be supported via a reference C implementation
  * on platforms without SIMD intrinsics.
  *
- * TODO: This 4-wide support non-SIMD support isn't available yet. Plan to
- * replace the existing float4, etc with this.
- *
  * Explicit 8-wide types are accessible via the vint8, vfloat8, and vmask8
  * types. These are provide for use by VLA code, and are not expected to be
  * used as a fixed-width type in normal code. No reference C implementation is
@@ -107,20 +104,20 @@
 #endif
 
 // Return x, with each lane having its sign flipped where the corresponding y lane is negative, i.e. msb(y) ? -x : x
-ASTCENC_SIMD_INLINE vfloat changesign(vfloat x, vfloat y)
+ASTCENC_SIMD_INLINE vfloat change_sign(vfloat x, vfloat y)
 {
-	vint ix = floatAsInt(x);
-	vint iy = floatAsInt(y);
-	vint signMask((int)0x80000000);
-	vint r = ix ^ (iy & signMask);
-	return intAsFloat(r);
+	vint ix = float_as_int(x);
+	vint iy = float_as_int(y);
+	vint sign_mask((int)0x80000000);
+	vint r = ix ^ (iy & sign_mask);
+	return int_as_float(r);
 }
 
 // Fast atan implementation, with max error of 0.004883
 ASTCENC_SIMD_INLINE vfloat atan(vfloat x)
 {
 	vmask c = abs(x) > vfloat(1.0f);
-	vfloat z = changesign(vfloat(astc::PI_OVER_TWO), x);
+	vfloat z = change_sign(vfloat(astc::PI_OVER_TWO), x);
 	vfloat y = select(x, vfloat(1.0f) / x, c);
 	y = y / (y * y * vfloat(0.28f) + vfloat(1.0f));
 	return select(y, z - y, c);
@@ -129,8 +126,8 @@ ASTCENC_SIMD_INLINE vfloat atan(vfloat x)
 ASTCENC_SIMD_INLINE vfloat atan2(vfloat y, vfloat x)
 {
 	vfloat z = atan(abs(y / x));
-	vmask xmask = vmask(floatAsInt(x).m);
-	return changesign(select(z, vfloat(astc::PI) - z, xmask), y);
+	vmask xmask = vmask(float_as_int(x).m);
+	return change_sign(select(z, vfloat(astc::PI) - z, xmask), y);
 }
 
 #endif // #ifndef ASTC_VECMATHLIB_H_INCLUDED

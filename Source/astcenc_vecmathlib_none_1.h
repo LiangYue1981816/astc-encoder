@@ -100,10 +100,10 @@ ASTCENC_SIMD_INLINE vfloat1 round(vfloat1 v)
 	return vfloat1(std::floor(v.m + 0.5f));
 }
 
-ASTCENC_SIMD_INLINE vint1 floatToInt(vfloat1 v) { return vint1(v.m); }
+ASTCENC_SIMD_INLINE vint1 float_to_int(vfloat1 v) { return vint1(v.m); }
 
-ASTCENC_SIMD_INLINE vfloat1 intAsFloat(vint1 v) { vfloat1 r; memcpy(&r.m, &v.m, 4); return r; }
-ASTCENC_SIMD_INLINE vint1 floatAsInt(vfloat1 v) { vint1 r; memcpy(&r.m, &v.m, 4); return r; }
+ASTCENC_SIMD_INLINE vfloat1 int_as_float(vint1 v) { vfloat1 r; memcpy(&r.m, &v.m, 4); return r; }
+ASTCENC_SIMD_INLINE vint1 float_as_int(vfloat1 v) { vint1 r; memcpy(&r.m, &v.m, 4); return r; }
 
 ASTCENC_SIMD_INLINE vint1 operator~ (vint1 a) { a.m = ~a.m; return a; }
 ASTCENC_SIMD_INLINE vint1 operator+ (vint1 a, vint1 b) { a.m = a.m + b.m; return a; }
@@ -130,6 +130,7 @@ ASTCENC_SIMD_INLINE vfloat1 gatherf(const float* base, vint1 indices)
 {
 	return vfloat1(base[indices.m]);
 }
+
 ASTCENC_SIMD_INLINE vint1 gatheri(const int* base, vint1 indices)
 {
 	return vint1(base[indices.m]);
@@ -140,7 +141,6 @@ ASTCENC_SIMD_INLINE vint1 pack_low_bytes(vint1 v)
 {
 	return v;
 }
-
 
 // "select", i.e. highbit(cond) ? b : a
 ASTCENC_SIMD_INLINE vfloat1 select(vfloat1 a, vfloat1 b, vmask1 cond)

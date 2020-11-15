@@ -37,6 +37,8 @@
 	#error "Include astcenc_vecmathlib.h, do not include directly"
 #endif
 
+#include <cstdio>
+
 // N-wide float
 struct vfloat8
 {
@@ -165,12 +167,12 @@ ASTCENC_SIMD_INLINE vfloat8 round(vfloat8 v)
 }
 
 // Per-lane convert to integer (truncate)
-ASTCENC_SIMD_INLINE vint8 floatToInt(vfloat8 v) { return vint8(_mm256_cvttps_epi32(v.m)); }
+ASTCENC_SIMD_INLINE vint8 float_to_int(vfloat8 v) { return vint8(_mm256_cvttps_epi32(v.m)); }
 
 // Reinterpret-bitcast integer vector as a float vector (this is basically a no-op on the CPU)
-ASTCENC_SIMD_INLINE vfloat8 intAsFloat(vint8 v) { return vfloat8(_mm256_castsi256_ps(v.m)); }
+ASTCENC_SIMD_INLINE vfloat8 int_as_float(vint8 v) { return vfloat8(_mm256_castsi256_ps(v.m)); }
 // Reinterpret-bitcast float vector as an integer vector (this is basically a no-op on the CPU)
-ASTCENC_SIMD_INLINE vint8 floatAsInt(vfloat8 v) { return vint8(_mm256_castps_si256(v.m)); }
+ASTCENC_SIMD_INLINE vint8 float_as_int(vfloat8 v) { return vint8(_mm256_castps_si256(v.m)); }
 
 ASTCENC_SIMD_INLINE vint8 operator~ (vint8 a) { return vint8(_mm256_xor_si256(a.m, _mm256_set1_epi32(-1))); }
 ASTCENC_SIMD_INLINE vmask8 operator~ (vmask8 a) { return vmask8(_mm256_xor_si256(_mm256_castps_si256(a.m), _mm256_set1_epi32(-1))); }

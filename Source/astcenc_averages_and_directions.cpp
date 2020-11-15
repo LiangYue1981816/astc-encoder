@@ -41,9 +41,9 @@ void compute_averages_and_directions_rgba(
 	const partition_info* pt,
 	const imageblock* blk,
 	const error_weight_block* ewb,
-	const float4* color_scalefactors,
-	float4* averages,
-	float4* directions_rgba
+	const vfloat4* color_scalefactors,
+	vfloat4* averages,
+	vfloat4* directions_rgba
 ) {
 	int partition_count = pt->partition_count;
 	for (int partition = 0; partition < partition_count; partition++)
@@ -51,56 +51,57 @@ void compute_averages_and_directions_rgba(
 		const uint8_t *weights = pt->texels_of_partition[partition];
 		int texelcount = pt->texels_per_partition[partition];
 
-		float4 base_sum = float4(0.0f);
+		vfloat4 base_sum = vfloat4::zero();
 		float partition_weight = 0.0f;
 
 		for (int i = 0; i < texelcount; i++)
 		{
 			int iwt = weights[i];
 			float weight = ewb->texel_weight[iwt];
-			float4 texel_datum = float4(blk->data_r[iwt],
-			                            blk->data_g[iwt],
-			                            blk->data_b[iwt],
-			                            blk->data_a[iwt]) * weight;
+			vfloat4 texel_datum = vfloat4(blk->data_r[iwt],
+			                              blk->data_g[iwt],
+			                              blk->data_b[iwt],
+			                              blk->data_a[iwt]) * weight;
 			partition_weight += weight;
 
 			base_sum = base_sum + texel_datum;
 		}
 
-		float4 average = base_sum * (1.0f / MAX(partition_weight, 1e-7f));
+		vfloat4 average = base_sum * (1.0f / MAX(partition_weight, 1e-7f));
+
 		averages[partition] = average * color_scalefactors[partition];
 
-		float4 sum_xp = float4(0.0f);
-		float4 sum_yp = float4(0.0f);
-		float4 sum_zp = float4(0.0f);
-		float4 sum_wp = float4(0.0f);
+		vfloat4 sum_xp = vfloat4::zero();
+		vfloat4 sum_yp = vfloat4::zero();
+		vfloat4 sum_zp = vfloat4::zero();
+		vfloat4 sum_wp = vfloat4::zero();
 
 		for (int i = 0; i < texelcount; i++)
 		{
 			int iwt = weights[i];
 			float weight = ewb->texel_weight[iwt];
-			float4 texel_datum = float4(blk->data_r[iwt],
-			                            blk->data_g[iwt],
-			                            blk->data_b[iwt],
-			                            blk->data_a[iwt]);
+			vfloat4 texel_datum = vfloat4(blk->data_r[iwt],
+			                              blk->data_g[iwt],
+			                              blk->data_b[iwt],
+			                              blk->data_a[iwt]);
 			texel_datum = (texel_datum - average) * weight;
 
-			if (texel_datum.r > 0.0f)
+			if (texel_datum.r() > 0.0f)
 			{
 				sum_xp = sum_xp + texel_datum;
 			}
 
-			if (texel_datum.g > 0.0f)
+			if (texel_datum.g() > 0.0f)
 			{
 				sum_yp = sum_yp + texel_datum;
 			}
 
-			if (texel_datum.b > 0.0f)
+			if (texel_datum.b() > 0.0f)
 			{
 				sum_zp = sum_zp + texel_datum;
 			}
 
-			if (texel_datum.a > 0.0f)
+			if (texel_datum.a() > 0.0f)
 			{
 				sum_wp = sum_wp + texel_datum;
 			}
@@ -111,7 +112,7 @@ void compute_averages_and_directions_rgba(
 		float prod_zp = dot(sum_zp, sum_zp);
 		float prod_wp = dot(sum_wp, sum_wp);
 
-		float4 best_vector = sum_xp;
+		vfloat4 best_vector = sum_xp;
 		float best_sum = prod_xp;
 
 		if (prod_yp > best_sum)
@@ -139,7 +140,7 @@ void compute_averages_and_directions_rgb(
 	const partition_info* pt,
 	const imageblock* blk,
 	const error_weight_block* ewb,
-	const float4* color_scalefactors,
+	const vfloat4* color_scalefactors,
 	float3* averages,
 	float3* directions_rgb
 ) {
@@ -166,9 +167,9 @@ void compute_averages_and_directions_rgb(
 			base_sum = base_sum + texel_datum;
 		}
 
-		float4 csf = color_scalefactors[partition];
+		vfloat4 csf = color_scalefactors[partition];
 		float3 average = base_sum * (1.0f / MAX(partition_weight, 1e-7f));
-		averages[partition] = average * float3(csf.r, csf.g, csf.b);
+		averages[partition] = average * float3(csf.r(), csf.g(), csf.b());
 
 		float3 sum_xp = float3(0.0f);
 		float3 sum_yp = float3(0.0f);
@@ -454,10 +455,10 @@ void compute_error_squared_rgba(
 	const processed_line3* plines_separate_alpha,
 	float* lengths_uncorr,
 	float* lengths_samechroma,
-	float4* lengths_separate,
+	vfloat4* lengths_separate,
 	float* uncorr_errors,
 	float* samechroma_errors,
-	float4* separate_color_errors
+	vfloat4* separate_color_errors
 ) {
 	float uncorr_errorsum = 0.0f;
 	float samechroma_errorsum = 0.0f;
@@ -479,8 +480,8 @@ void compute_error_squared_rgba(
 		float samechroma_lowparam = 1e10f;
 		float samechroma_highparam = -1e10f;
 
-		float4 separate_lowparam = float4(1e10f);
-		float4 separate_highparam = float4(-1e10f);
+		vfloat4 separate_lowparam = vfloat4(1e10f);
+		vfloat4 separate_highparam = vfloat4(-1e10f);
 
 		processed_line4 l_uncorr = plines_uncorr[partition];
 		processed_line4 l_samechroma = plines_samechroma[partition];
@@ -498,12 +499,12 @@ void compute_error_squared_rgba(
 			float texel_weight_rgba = ewb->texel_weight[iwt];
 			if (texel_weight_rgba > 1e-20f)
 			{
-				float4 dat = float4(blk->data_r[iwt],
-				                    blk->data_g[iwt],
-				                    blk->data_b[iwt],
-				                    blk->data_a[iwt]);
+				vfloat4 dat = vfloat4(blk->data_r[iwt],
+				                      blk->data_g[iwt],
+				                      blk->data_b[iwt],
+				                      blk->data_a[iwt]);
 
-				float4 ews = ewb->error_weights[iwt];
+				vfloat4 ews = ewb->error_weights[iwt];
 
 				float uncorr_param = dot(dat, l_uncorr.bs);
 				uncorr_lowparam = MIN(uncorr_param, uncorr_lowparam);
@@ -513,49 +514,42 @@ void compute_error_squared_rgba(
 				samechroma_lowparam = MIN(samechroma_param, samechroma_lowparam);
 				samechroma_highparam = MAX(samechroma_param, samechroma_highparam);
 
-				float4 separate_param = float4(dot(float3(dat.g, dat.b, dat.a), l_red.bs),
-				                               dot(float3(dat.r, dat.b, dat.a), l_green.bs),
-				                               dot(float3(dat.r, dat.g, dat.a), l_blue.bs),
-				                               dot(float3(dat.r, dat.g, dat.b), l_alpha.bs));
+				vfloat4 separate_param = vfloat4(dot(float3(dat.g(), dat.b(), dat.a()), l_red.bs),
+				                                 dot(float3(dat.r(), dat.b(), dat.a()), l_green.bs),
+				                                 dot(float3(dat.r(), dat.g(), dat.a()), l_blue.bs),
+				                                 dot(float3(dat.r(), dat.g(), dat.b()), l_alpha.bs));
 
-				separate_lowparam = float4(MIN(separate_param.r, separate_lowparam.r),
-				                           MIN(separate_param.g, separate_lowparam.g),
-				                           MIN(separate_param.b, separate_lowparam.b),
-				                           MIN(separate_param.a, separate_lowparam.a));
+				separate_lowparam = min(separate_param, separate_lowparam);
+				separate_highparam = max(separate_param, separate_highparam);
 
-				separate_highparam = float4(MAX(separate_param.r, separate_highparam.r),
-				                            MAX(separate_param.g, separate_highparam.g),
-				                            MAX(separate_param.b, separate_highparam.b),
-				                            MAX(separate_param.a, separate_highparam.a));
-
-				float4 uncorr_dist  = (l_uncorr.amod - dat) + (uncorr_param * l_uncorr.bis);
+				vfloat4 uncorr_dist  = (l_uncorr.amod - dat) + (uncorr_param * l_uncorr.bis);
 				uncorr_errorsum += dot(ews, uncorr_dist * uncorr_dist);
 
-				float4 samechroma_dist = (l_samechroma.amod - dat) +
+				vfloat4 samechroma_dist = (l_samechroma.amod - dat) +
 				                         (samechroma_param * l_samechroma.bis);
 				samechroma_errorsum += dot(ews, samechroma_dist * samechroma_dist);
 
-				float3 red_dist = (l_red.amod - float3(dat.g, dat.b, dat.a)) +
-				                  (separate_param.r * l_red.bis);
-				red_errorsum += dot(float3(ews.g, ews.b, ews.a), red_dist * red_dist);
+				float3 red_dist = (l_red.amod - float3(dat.g(), dat.b(), dat.a())) +
+				                  (separate_param.r() * l_red.bis);
+				red_errorsum += dot(float3(ews.g(), ews.b(), ews.a()), red_dist * red_dist);
 
-				float3 green_dist  = (l_green.amod - float3(dat.r, dat.b, dat.a)) +
-				                     (separate_param.g * l_green.bis);
-				green_errorsum += dot(float3(ews.r, ews.b, ews.a), green_dist * green_dist);
+				float3 green_dist  = (l_green.amod - float3(dat.r(), dat.b(), dat.a())) +
+				                     (separate_param.g() * l_green.bis);
+				green_errorsum += dot(float3(ews.r(), ews.b(), ews.a()), green_dist * green_dist);
 
-				float3 blue_dist  = (l_blue.amod - float3(dat.r, dat.g, dat.a)) +
-				                    (separate_param.b * l_blue.bis);
-				blue_errorsum += dot(float3(ews.r, ews.g, ews.a), blue_dist * blue_dist);
+				float3 blue_dist  = (l_blue.amod - float3(dat.r(), dat.g(), dat.a())) +
+				                    (separate_param.b() * l_blue.bis);
+				blue_errorsum += dot(float3(ews.r(), ews.g(), ews.a()), blue_dist * blue_dist);
 
-				float3 alpha_dist  = (l_alpha.amod - float3(dat.r, dat.g, dat.b)) +
-				                     (separate_param.a * l_alpha.bis);
-				alpha_errorsum += dot(float3(ews.r, ews.g, ews.b), alpha_dist * alpha_dist);
+				float3 alpha_dist  = (l_alpha.amod - float3(dat.r(), dat.g(), dat.b())) +
+				                     (separate_param.a() * l_alpha.bis);
+				alpha_errorsum += dot(float3(ews.r(), ews.g(), ews.b()), alpha_dist * alpha_dist);
 			}
 		}
 
 		float uncorr_linelen = uncorr_highparam - uncorr_lowparam;
 		float samechroma_linelen = samechroma_highparam - samechroma_lowparam;
-		float4 separate_linelen = separate_highparam - separate_lowparam;
+		vfloat4 separate_linelen = separate_highparam - separate_lowparam;
 
 		// Turn very small numbers and NaNs into a small number
 		if (!(uncorr_linelen > 1e-7f))
@@ -568,24 +562,24 @@ void compute_error_squared_rgba(
 			samechroma_linelen = 1e-7f;
 		}
 
-		if (!(separate_linelen.r > 1e-7f))
+		if (!(separate_linelen.r() > 1e-7f))
 		{
-			separate_linelen.r = 1e-7f;
+			separate_linelen.set_lane<0>(1e-7f);
 		}
 
-		if (!(separate_linelen.g > 1e-7f))
+		if (!(separate_linelen.g() > 1e-7f))
 		{
-			separate_linelen.g = 1e-7f;
+			separate_linelen.set_lane<1>(1e-7f);
 		}
 
-		if (!(separate_linelen.b > 1e-7f))
+		if (!(separate_linelen.b() > 1e-7f))
 		{
-			separate_linelen.b = 1e-7f;
+			separate_linelen.set_lane<2>(1e-7f);
 		}
 
-		if (!(separate_linelen.a > 1e-7f))
+		if (!(separate_linelen.a() > 1e-7f))
 		{
-			separate_linelen.a = 1e-7f;
+			separate_linelen.set_lane<3>(1e-7f);
 		}
 
 		lengths_uncorr[partition] = uncorr_linelen;
@@ -594,7 +588,7 @@ void compute_error_squared_rgba(
 
 		*uncorr_errors = uncorr_errorsum;
 		*samechroma_errors = samechroma_errorsum;
-		*separate_color_errors = float4(red_errorsum, green_errorsum, blue_errorsum, alpha_errorsum);
+		*separate_color_errors = vfloat4(red_errorsum, green_errorsum, blue_errorsum, alpha_errorsum);
 	}
 }
 
@@ -656,9 +650,9 @@ void compute_error_squared_rgb(
 				                    blk->data_g[iwt],
 				                    blk->data_b[iwt]);
 
-				float3 ews = float3(ewb->error_weights[iwt].r,
-				                    ewb->error_weights[iwt].g,
-				                    ewb->error_weights[iwt].b);
+				float3 ews = float3(ewb->error_weights[iwt].r(),
+				                    ewb->error_weights[iwt].g(),
+				                    ewb->error_weights[iwt].b());
 
 				float uncorr_param = dot(dat, l_uncorr.bs);
 				uncorr_lowparam  = MIN(uncorr_param, uncorr_lowparam);
@@ -771,8 +765,8 @@ float compute_error_squared_rgb_single_partition(
 		float param = dot(point, lin->bs);
 		float3 rp1 = lin->amod + param * lin->bis;
 		float3 dist = rp1 - point;
-		float4 ews = ewb->error_weights[i];
-		float3 ews3 = float3(ews.r, ews.g, ews.b);
+		vfloat4 ews = ewb->error_weights[i];
+		float3 ews3 = float3(ews.r(), ews.g(), ews.b());
 		errorsum += dot(ews3, dist * dist);
 	}
 

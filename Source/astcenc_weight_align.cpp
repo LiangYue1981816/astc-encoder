@@ -209,7 +209,7 @@ static void compute_lowest_and_highest_weight(
 			vfloat wt = load1a(&sample_weights[j]);
 			vfloat sval = load1a(&samples[j]) * rcp_stepsize - scaled_offset;
 			vfloat svalrte = round(sval);
-			vint idxv = floatToInt(svalrte);
+			vint idxv = float_to_int(svalrte);
 			vfloat dif = sval - svalrte;
 			vfloat dwt = dif * wt;
 			errval = errval + dwt * dif;

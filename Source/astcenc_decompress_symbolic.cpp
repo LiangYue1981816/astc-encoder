@@ -403,31 +403,20 @@ float compute_symbolic_block_difference(
 		                             plane2_weights[i],
 		                             is_dual_plane ? plane2_color_component : -1);
 
-		float4 newColor = float4((float)color.r,
-		                         (float)color.g,
-		                         (float)color.b,
-		                         (float)color.a);
+		vfloat4 newColor = vfloat4((float)color.r,
+		                           (float)color.g,
+		                           (float)color.b,
+		                           (float)color.a);
 
-		float4 oldColor = float4(pb->data_r[i],
-		                         pb->data_g[i],
-		                         pb->data_b[i],
-		                         pb->data_a[i]);
+		vfloat4 oldColor = vfloat4(pb->data_r[i],
+		                           pb->data_g[i],
+		                           pb->data_b[i],
+		                           pb->data_a[i]);
 
-		float4 error = oldColor - newColor;
-
-		error.r = MIN(fabsf(error.r), 1e15f);
-		error.g = MIN(fabsf(error.g), 1e15f);
-		error.b = MIN(fabsf(error.b), 1e15f);
-		error.a = MIN(fabsf(error.a), 1e15f);
-
+		vfloat4 error = min(abs(oldColor - newColor), vfloat4(1e15f));
 		error = error * error;
 
-		float4 errorWeight = float4(ewb->error_weights[i].r,
-		                            ewb->error_weights[i].g,
-		                            ewb->error_weights[i].b,
-		                            ewb->error_weights[i].a);
-
-		float metric = dot(error, errorWeight);
+		float metric = dot(error, ewb->error_weights[i]);
 		if (metric >= 1e30f) metric = 1e30f;
 		if (metric != metric) metric = 0.0f;
 

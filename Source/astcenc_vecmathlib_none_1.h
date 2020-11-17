@@ -46,8 +46,10 @@ struct vfloat1
 	ASTCENC_SIMD_INLINE vfloat1() {}
 	ASTCENC_SIMD_INLINE explicit vfloat1(const float *p) { m = *p; }
 	ASTCENC_SIMD_INLINE explicit vfloat1(float v) { m = v; }
-	ASTCENC_SIMD_INLINE float lane(int i) const { (void)i; return m; }
+	template <int l> ASTCENC_SIMD_INLINE float lane() const { return m; }
 	static ASTCENC_SIMD_INLINE vfloat1 zero() { return vfloat1(0.0f); }
+	static ASTCENC_SIMD_INLINE vfloat1 load1(const float* p) { return vfloat1(*p); }
+	static ASTCENC_SIMD_INLINE vfloat1 loada(const float* p) { return vfloat1(*p); }
 	static ASTCENC_SIMD_INLINE vfloat1 lane_id() { return vfloat1(0.0f); }
 	float m;
 };
@@ -68,10 +70,6 @@ struct vmask1
 	bool m;
 };
 
-
-ASTCENC_SIMD_INLINE vfloat1 load1a_1f(const float* p) { return vfloat1(*p); }
-ASTCENC_SIMD_INLINE vfloat1 loada_1f(const float* p) { return vfloat1(*p); }
-
 ASTCENC_SIMD_INLINE vfloat1 operator+ (vfloat1 a, vfloat1 b) { a.m = a.m + b.m; return a; }
 ASTCENC_SIMD_INLINE vfloat1 operator- (vfloat1 a, vfloat1 b) { a.m = a.m - b.m; return a; }
 ASTCENC_SIMD_INLINE vfloat1 operator* (vfloat1 a, vfloat1 b) { a.m = a.m * b.m; return a; }
@@ -91,7 +89,7 @@ ASTCENC_SIMD_INLINE bool all(vmask1 v) { return mask(v) != 0; }
 
 ASTCENC_SIMD_INLINE vfloat1 min(vfloat1 a, vfloat1 b) { a.m = a.m < b.m ? a.m : b.m; return a; }
 ASTCENC_SIMD_INLINE vfloat1 max(vfloat1 a, vfloat1 b) { a.m = a.m > b.m ? a.m : b.m; return a; }
-ASTCENC_SIMD_INLINE vfloat1 saturate(vfloat1 a) { return vfloat1(std::min(std::max(a.m,0.0f), 1.0f)); }
+ASTCENC_SIMD_INLINE vfloat1 clampzo(vfloat1 a) { return vfloat1(std::min(std::max(a.m,0.0f), 1.0f)); }
 
 ASTCENC_SIMD_INLINE vfloat1 abs(vfloat1 x) { return vfloat1(std::abs(x.m)); }
 
@@ -121,8 +119,8 @@ ASTCENC_SIMD_INLINE vint1 max(vint1 a, vint1 b) { a.m = a.m > b.m ? a.m : b.m; r
 ASTCENC_SIMD_INLINE vfloat1 hmin(vfloat1 v) { return v; }
 ASTCENC_SIMD_INLINE vint1 hmin(vint1 v) { return v; }
 
-ASTCENC_SIMD_INLINE void store(vfloat1 v, float* ptr) { *ptr = v.m; }
-ASTCENC_SIMD_INLINE void store(vint1 v, int* ptr) { *ptr = v.m; }
+ASTCENC_SIMD_INLINE void storea(vfloat1 v, float* ptr) { *ptr = v.m; }
+ASTCENC_SIMD_INLINE void storea(vint1 v, int* ptr) { *ptr = v.m; }
 
 ASTCENC_SIMD_INLINE void store_nbytes(vint1 v, uint8_t* ptr) { *ptr = (uint8_t)v.m; }
 

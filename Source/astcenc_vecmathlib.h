@@ -74,8 +74,8 @@
 	using vint = vint8;
 	using vmask = vmask8;
 
-	const auto loada = loada_8f;
-	const auto load1a = load1a_8f;
+	const auto loada = vfloat8::loada;
+	const auto load1 = vfloat8::load1;
 
 #elif ASTCENC_SSE >= 20
 	/* If we have SSE expose 4-wide VLA, and 4-wide fixed width. */
@@ -87,8 +87,8 @@
 	using vint = vint4;
 	using vmask = vmask4;
 
-	const auto loada = loada_4f;
-	const auto load1a = load1a_4f;
+	const auto loada = vfloat4::loada;
+	const auto load1 = vfloat4::load1;
 #else
 	/* If we have nothing expose 1-wide VLA. */
 	#include "astcenc_vecmathlib_none_1.h"
@@ -99,8 +99,8 @@
 	using vint = vint1;
 	using vmask = vmask1;
 
-	const auto loada = loada_1f;
-	const auto load1a = load1a_1f;
+	const auto loada = vfloat1::loada;
+	const auto load1 = vfloat1::load1;
 #endif
 
 // Return x, with each lane having its sign flipped where the corresponding y lane is negative, i.e. msb(y) ? -x : x

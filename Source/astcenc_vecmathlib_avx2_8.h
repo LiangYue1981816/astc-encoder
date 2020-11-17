@@ -52,19 +52,25 @@ struct vfloat8
 	ASTCENC_SIMD_INLINE explicit vfloat8(__m256 v) { m = v; }
 
 	// Get SIMD lane #i value.
-	ASTCENC_SIMD_INLINE float lane(int i) const
+	template <int l> ASTCENC_SIMD_INLINE float lane() const
 	{
 		#ifdef _MSC_VER
 		return m.m256_f32[i];
 		#else
 		union { __m256 m; float f[8]; } cvt;
 		cvt.m = m;
-		return cvt.f[i];
+		return cvt.f[l];
 		#endif
 	}
 
 	// Float vector with all zero values
 	static ASTCENC_SIMD_INLINE vfloat8 zero() { return vfloat8(_mm256_setzero_ps()); }
+
+	// Initialize with one float in all SIMD lanes, from an aligned memory address.
+	static ASTCENC_SIMD_INLINE vfloat8 load1(const float* p) { return vfloat8(_mm256_broadcast_ss(p)); }
+
+	// Initialize with N floats from an aligned memory address.
+	static ASTCENC_SIMD_INLINE vfloat8 loada(const float* p) { return vfloat8(_mm256_load_ps(p)); }
 
 	// Float vector with each lane having the lane index (0, 1, 2, ...)
 	static ASTCENC_SIMD_INLINE vfloat8 lane_id() { return vfloat8(_mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)); }
@@ -110,12 +116,6 @@ struct vmask8
 	__m256 m;
 };
 
-// Initialize with one float in all SIMD lanes, from an aligned memory address.
-ASTCENC_SIMD_INLINE vfloat8 load1a_8f(const float* p) { return vfloat8(_mm256_broadcast_ss(p)); }
-
-// Initialize with N floats from an aligned memory address.
-ASTCENC_SIMD_INLINE vfloat8 loada_8f(const float* p) { return vfloat8(_mm256_load_ps(p)); }
-
 // Per-lane float arithmetic operations
 ASTCENC_SIMD_INLINE vfloat8 operator+ (vfloat8 a, vfloat8 b) { a.m = _mm256_add_ps(a.m, b.m); return a; }
 ASTCENC_SIMD_INLINE vfloat8 operator- (vfloat8 a, vfloat8 b) { a.m = _mm256_sub_ps(a.m, b.m); return a; }
@@ -147,7 +147,7 @@ ASTCENC_SIMD_INLINE vfloat8 min(vfloat8 a, vfloat8 b) { a.m = _mm256_min_ps(a.m,
 ASTCENC_SIMD_INLINE vfloat8 max(vfloat8 a, vfloat8 b) { a.m = _mm256_max_ps(a.m, b.m); return a; }
 
 // Per-lane clamp to 0..1 range
-ASTCENC_SIMD_INLINE vfloat8 saturate(vfloat8 a)
+ASTCENC_SIMD_INLINE vfloat8 clampzo(vfloat8 a)
 {
 	__m256 zero = _mm256_setzero_ps();
 	__m256 one = _mm256_set1_ps(1.0f);
@@ -236,10 +236,10 @@ ASTCENC_SIMD_INLINE vint8 hmin(vint8 v)
 }
 
 // Store float vector into an aligned address.
-ASTCENC_SIMD_INLINE void store(vfloat8 v, float* ptr) { _mm256_store_ps(ptr, v.m); }
+ASTCENC_SIMD_INLINE void storea(vfloat8 v, float* ptr) { _mm256_store_ps(ptr, v.m); }
 
 // Store integer vector into an aligned address.
-ASTCENC_SIMD_INLINE void store(vint8 v, int* ptr) { _mm256_store_si256((__m256i*)ptr, v.m); }
+ASTCENC_SIMD_INLINE void storea(vint8 v, int* ptr) { _mm256_store_si256((__m256i*)ptr, v.m); }
 
 // Store lowest N (simd width) bytes of integer vector into an unaligned address.
 ASTCENC_SIMD_INLINE void store_nbytes(vint8 v, uint8_t* ptr)
@@ -292,7 +292,7 @@ ASTCENC_SIMD_INLINE vint8 select(vint8 a, vint8 b, vmask8 cond)
 ASTCENC_SIMD_INLINE void print(vfloat8 a)
 {
 	alignas(ASTCENC_VECALIGN) float v[8];
-	store(a, v);
+	storea(a, v);
 	printf("v8_f32:\n  %0.4f %0.4f %0.4f %0.4f %0.4f %0.4f %0.4f %0.4f\n",
 	       (double)v[0], (double)v[1], (double)v[2], (double)v[3],
 	       (double)v[4], (double)v[5], (double)v[6], (double)v[7]);
@@ -301,7 +301,7 @@ ASTCENC_SIMD_INLINE void print(vfloat8 a)
 ASTCENC_SIMD_INLINE void print(vint8 a)
 {
 	alignas(ASTCENC_VECALIGN) int v[8];
-	store(a, v);
+	storea(a, v);
 	printf("v8_i32:\n  %8u %8u %8u %8u %8u %8u %8u %8u\n",
 	       v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 }

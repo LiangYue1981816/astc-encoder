@@ -90,14 +90,14 @@ struct vint8
 	ASTCENC_SIMD_INLINE explicit vint8(__m256i v) { m = v; }
 
 	// Get SIMD lane #i value
-	ASTCENC_SIMD_INLINE int lane(int i) const
+	template <int l> ASTCENC_SIMD_INLINE int lane() const
 	{
 		#ifdef _MSC_VER
 		return m.m256i_i32[i];
 		#else
 		union { __m256i m; int f[8]; } cvt;
 		cvt.m = m;
-		return cvt.f[i];
+		return cvt.f[l];
 		#endif
 	}
 

@@ -59,7 +59,7 @@ struct vint1
 	ASTCENC_SIMD_INLINE vint1() {}
 	ASTCENC_SIMD_INLINE explicit vint1(const int *p) { m = *p; }
 	ASTCENC_SIMD_INLINE explicit vint1(int v) { m = v; }
-	ASTCENC_SIMD_INLINE int lane(int i) const { (void)i; return m; }
+	template <int l> ASTCENC_SIMD_INLINE int lane() const { return m; }
 	static ASTCENC_SIMD_INLINE vint1 lane_id() { return vint1(0); }
 	int m;
 };

@@ -77,8 +77,11 @@ static inline float fabs(float val)
 /**
  * @brief SP float min.
  *
- * @param valA The first value to compare.
- * @param valB The second value to compare.
+ * @param p The first value to compare.
+ * @param q The second value to compare.
+ *
+ * To suppress NaN values, put the possible NaN argument as @c p. In this case
+ * the value of @c q will be returned.
  *
  * @return The smallest value.
  */
@@ -90,14 +93,17 @@ static inline float fmin(float p, float q)
 /**
  * @brief SP float max.
  *
- * @param valA The first value to compare.
- * @param valB The second value to compare.
+ * @param p The first value to compare.
+ * @param q The second value to compare.
+ *
+ * To suppress NaN values, put the possible NaN argument as @c p. In this case
+ * the value of @c q will be returned.
  *
  * @return The largest value.
  */
 static inline float fmax(float p, float q)
 {
-	return q < p ? p : q;
+	return p > q ? p : q;
 }
 
 /**
